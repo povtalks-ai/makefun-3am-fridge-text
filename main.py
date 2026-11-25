@@ -46,12 +46,34 @@ def output_path():
     return os.path.join(out_dir, "entry.txt")
 
 
+def verify_output(path, expected):
+    """Re-read what was written and fail loudly if it is not the
+    validated text: must decode as UTF-8, be one line, 1-140 chars,
+    and match the text we meant to write."""
+    with open(path, "rb") as f:
+        raw = f.read()
+    try:
+        written = raw.decode("utf-8")
+    except UnicodeDecodeError as exc:
+        raise ValueError("output is not valid UTF-8: %s" % exc)
+    if written != expected:
+        raise ValueError("output does not match the validated text")
+    if not 1 <= len(written) <= MAX_CHARS:
+        raise ValueError(
+            "output is %d characters, outside the 1-%d range"
+            % (len(written), MAX_CHARS)
+        )
+    if "\n" in written or "\r" in written:
+        raise ValueError("output must be a single line")
+
+
 def main():
     text = validate(TEXT)
     path = output_path()
     os.makedirs(os.path.dirname(path), exist_ok=True)
     with open(path, "w", encoding="utf-8") as f:
         f.write(text)
+    verify_output(path, text)
     print("wrote %d characters to %s" % (len(text), path))
     return 0
 
